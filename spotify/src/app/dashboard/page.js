@@ -11,6 +11,7 @@ import DecadeWidget from "@/components/widgets/DecadeWidget";
 import PopularityWidget from "@/components/widgets/PopularityWidget";
 import MoodWidget from "@/components/widgets/MoodWidget";
 import FavoritesWidget from "@/components/widgets/FavoritesWidget";
+import TrackWidget from "@/components/widgets/TrackWidget";
 
 function mapPopularityToRange(value) {
   if (value <= 30) return [0, 50];
@@ -23,6 +24,7 @@ function DashboardPage() {
 
   // ESTADO DE PREFERENCIAS
   const [artists, setArtists] = useState([]);
+  const [seedTracks, setSeedTracks] = useState([]);
   const [genres, setGenres] = useState([]);
   const [decades, setDecades] = useState([]);
   const [popularity, setPopularity] = useState(70);
@@ -74,6 +76,11 @@ function DashboardPage() {
     });
   };
 
+  // Eliminar track del setlist
+  const removeTrack = (trackId) => {
+    setTracks((prev) => prev.filter((t) => t.id !== trackId));
+  };
+
   // Generación de playlist
   const handleGeneratePlaylist = async () => {
     setError("");
@@ -88,6 +95,7 @@ function DashboardPage() {
       decades,
       popularity: popularityRange,
       mood,
+      seedTracks, // preparado por si quieres usarlo en el futuro
     };
 
     try {
@@ -118,7 +126,8 @@ function DashboardPage() {
                 Spotify Taste Mixer
               </h1>
               <p className="text-xs text-zinc-300/80">
-                Diseña tu propio setlist mezclando eras, estados de ánimo y décadas.
+                Diseña tu propio setlist mezclando eras, estados de ánimo y
+                décadas.
               </p>
             </div>
 
@@ -136,15 +145,24 @@ function DashboardPage() {
         <main className="mx-auto max-w-6xl px-4 py-6 space-y-6">
           {/* CINTA SUPERIOR */}
           <section className="rounded-2xl border border-white/10 bg-gradient-to-r from-fuchsia-500/20 via-sky-500/10 to-indigo-500/20 px-4 py-3 text-xs backdrop-blur-sm">
-            <div className="flex justify-between">
+            <div className="flex justify-between flex-wrap gap-2">
               <span className="rounded-full border border-white/30 bg-black/40 px-3 py-1 text-[10px] uppercase tracking-[0.22em]">
                 Tour dashboard
               </span>
 
-              <div className="flex gap-2">
-                <span className="rounded-full bg-black/40 px-3 py-1">Eras: {decades.length}</span>
-                <span className="rounded-full bg-black/40 px-3 py-1">Artistas: {artists.length}</span>
-                <span className="rounded-full bg-black/40 px-3 py-1">Géneros: {genres.length}</span>
+              <div className="flex flex-wrap gap-2">
+                <span className="rounded-full bg-black/40 px-3 py-1">
+                  Eras: {decades.length}
+                </span>
+                <span className="rounded-full bg-black/40 px-3 py-1">
+                  Artistas: {artists.length}
+                </span>
+                <span className="rounded-full bg-black/40 px-3 py-1">
+                  Tracks semilla: {seedTracks.length}
+                </span>
+                <span className="rounded-full bg-black/40 px-3 py-1">
+                  Géneros: {genres.length}
+                </span>
               </div>
             </div>
           </section>
@@ -154,6 +172,7 @@ function DashboardPage() {
             {/* IZQUIERDA – Widgets */}
             <div className="space-y-4">
               <ArtistWidget onChange={setArtists} />
+              <TrackWidget onChange={setSeedTracks} />
               <GenreWidget onChange={setGenres} />
               <DecadeWidget onChange={setDecades} />
               <MoodWidget onChange={setMood} />
@@ -187,23 +206,31 @@ function DashboardPage() {
                   {tracks.map((track) => (
                     <li
                       key={track.id}
-                      className="flex items-center justify-between rounded-xl border border-white/10 bg-black/60 px-3 py-2"
+                      className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/60 px-3 py-2"
                     >
-                      <div className="truncate">
-                        <p className="font-medium truncate">{track.name}</p>
-                        <p className="text-[10px] text-zinc-400 truncate">
+                      <div className="min-w-0">
+                        <p className="truncate font-medium">{track.name}</p>
+                        <p className="truncate text-[10px] text-zinc-400">
                           {track.artists?.map((a) => a.name).join(", ")}
                         </p>
                       </div>
 
-                      <button
-                        onClick={() => toggleFavorite(track)}
-                        className="rounded-full border border-white/20 px-2 py-1 text-[10px] hover:bg-white/10"
-                      >
-                        {favoriteTracks.some((f) => f.id === track.id)
-                          ? "Unfav"
-                          : "Fav"}
-                      </button>
+                      <div className="flex flex-shrink-0 items-center gap-2">
+                        <button
+                          onClick={() => toggleFavorite(track)}
+                          className="rounded-full border border-white/20 px-2 py-1 text-[10px] hover:bg-white/10"
+                        >
+                          {favoriteTracks.some((f) => f.id === track.id)
+                            ? "Unfav"
+                            : "Fav"}
+                        </button>
+                        <button
+                          onClick={() => removeTrack(track.id)}
+                          className="rounded-full border border-rose-400/70 px-2 py-1 text-[10px] text-rose-200 hover:bg-rose-600/70 hover:border-rose-300"
+                        >
+                          Quitar
+                        </button>
+                      </div>
                     </li>
                   ))}
                 </ul>
