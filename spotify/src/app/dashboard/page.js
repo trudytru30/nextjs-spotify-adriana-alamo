@@ -19,6 +19,16 @@ function mapPopularityToRange(value) {
   return [60, 100];
 }
 
+// Formatear duración en ms a mm:ss
+function formatDuration(ms) {
+  if (ms == null) return "";
+  const totalSeconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  const paddedSeconds = seconds < 10 ? `0${seconds}` : String(seconds);
+  return `${minutes}:${paddedSeconds}`;
+}
+
 // Etiquetas para los presets de álbum que envía el MoodWidget
 const MOOD_ALBUM_LABELS = {
   debut: "Debut",
@@ -71,8 +81,7 @@ function adjustPreferencesForMood(preferences, mood) {
     adjusted.popularity = [min, max];
   }
 
-  // Importante: ya NO asignamos décadas automáticamente según el álbum.
-  // Las décadas y el rango de años quedan totalmente bajo el control del widget.
+  // No asignamos décadas automáticamente; las controla el usuario.
 
   return adjusted;
 }
@@ -219,7 +228,7 @@ function DashboardPage() {
     setTracks((prev) => prev.filter((t) => t.id !== trackId));
   };
 
-  // Construir preferencias finales (widgets + mood)
+  // Construir preferencias finales (widgets + mood + favoritos)
   const buildFinalPreferences = () => {
     const popularityRange = Array.isArray(popularity)
       ? popularity
@@ -232,7 +241,8 @@ function DashboardPage() {
       yearRange,
       popularity: popularityRange,
       mood, // objeto completo
-      seedTracks, // disponible para usarlo en el futuro en generatePlaylist
+      seedTracks, // reservado para futuros usos
+      favoriteTracks, // ahora influyen en generatePlaylist
     };
 
     return adjustPreferencesForMood(basePreferences, mood);
@@ -402,36 +412,64 @@ function DashboardPage() {
 
                 {/* LISTA DE TEMAS */}
                 <ul className="mt-3 space-y-2 text-[11px] text-zinc-200">
-                  {tracks.map((track) => (
-                    <li
-                      key={track.id}
-                      className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/60 px-3 py-2"
-                    >
-                      <div className="min-w-0">
-                        <p className="truncate font-medium">{track.name}</p>
-                        <p className="truncate text-[10px] text-zinc-400">
-                          {track.artists?.map((a) => a.name).join(", ")}
-                        </p>
-                      </div>
+                  {tracks.map((track) => {
+                    const artistsNames = track.artists
+                      ?.map((a) => a.name)
+                      .join(", ");
+                    const cover =
+                      track.album?.images &&
+                      track.album.images.length > 0 &&
+                      track.album.images[0].url;
 
-                      <div className="flex flex-shrink-0 items-center gap-2">
-                        <button
-                          onClick={() => toggleFavorite(track)}
-                          className="rounded-full border border-white/20 px-2 py-1 text-[10px] hover:bg-white/10"
-                        >
-                          {favoriteTracks.some((f) => f.id === track.id)
-                            ? "Unfav"
-                            : "Fav"}
-                        </button>
-                        <button
-                          onClick={() => removeTrack(track.id)}
-                          className="rounded-full border border-rose-400/70 px-2 py-1 text-[10px] text-rose-200 hover:bg-rose-600/70 hover:border-rose-300"
-                        >
-                          Quitar
-                        </button>
-                      </div>
-                    </li>
-                  ))}
+                    return (
+                      <li
+                        key={track.id}
+                        className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/60 px-3 py-2"
+                      >
+                        <div className="flex min-w-0 items-center gap-3">
+                          {cover && (
+                            <img
+                              src={cover}
+                              alt={track.name}
+                              className="h-10 w-10 flex-shrink-0 rounded-md object-cover"
+                            />
+                          )}
+                          <div className="min-w-0">
+                            <p className="truncate font-medium">
+                              {track.name}
+                            </p>
+                            <p className="truncate text-[10px] text-zinc-400">
+                              {artistsNames}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-shrink-0 items-center gap-3">
+                          <span className="text-[10px] text-zinc-400">
+                            {formatDuration(track.duration_ms)}
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => toggleFavorite(track)}
+                              className="rounded-full border border-white/20 px-2 py-1 text-[10px] hover:bg-white/10"
+                            >
+                              {favoriteTracks.some(
+                                (f) => f.id === track.id
+                              )
+                                ? "Unfav"
+                                : "Fav"}
+                            </button>
+                            <button
+                              onClick={() => removeTrack(track.id)}
+                              className="rounded-full border border-rose-400/70 px-2 py-1 text-[10px] text-rose-200 hover:bg-rose-600/70 hover:border-rose-300"
+                            >
+                              Quitar
+                            </button>
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
 

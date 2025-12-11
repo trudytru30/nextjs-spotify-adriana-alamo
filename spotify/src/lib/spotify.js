@@ -7,23 +7,42 @@ export async function generatePlaylist(preferences) {
     decades = [],
     yearRange,
     popularity,
+    favoriteTracks = [],
   } = preferences;
 
   const token = getAccessToken();
-  let allTracks = [];
+
+  // 0. Normalizamos favoritos (por si llegan duplicados)
+  const favoritesMap = new Map();
+  if (Array.isArray(favoriteTracks)) {
+    for (const track of favoriteTracks) {
+      if (track && track.id) {
+        favoritesMap.set(track.id, track);
+      }
+    }
+  }
+  const favoritesUnique = Array.from(favoritesMap.values());
 
   // 1. Obtener top tracks de artistas seleccionados
-  for (const artist of artists) {
-    const response = await fetch(
-      `https://api.spotify.com/v1/artists/${artist.id}/top-tracks?market=US`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      }
-    );
-    const data = await response.json();
+  let candidateTracks = [];
 
-    if (Array.isArray(data.tracks)) {
-      allTracks.push(...data.tracks);
+  for (const artist of artists) {
+    try {
+      const response = await fetch(
+        `https://api.spotify.com/v1/artists/${artist.id}/top-tracks?market=US`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      if (!response.ok) continue;
+
+      const data = await response.json();
+
+      if (Array.isArray(data.tracks)) {
+        candidateTracks.push(...data.tracks);
+      }
+    } catch {
+      // ignoramos errores individuales de artista para no romper toda la generación
     }
   }
 
@@ -32,29 +51,35 @@ export async function generatePlaylist(preferences) {
     const uniqueGenres = Array.from(new Set(genres)).slice(0, 5); // límite para no hacer demasiadas peticiones
 
     for (const genre of uniqueGenres) {
-      const query = `genre:${genre}`;
-      const response = await fetch(
-        `https://api.spotify.com/v1/search?q=${encodeURIComponent(
-          query
-        )}&type=track&limit=10`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      const data = await response.json();
+      try {
+        const query = `genre:${genre}`;
+        const response = await fetch(
+          `https://api.spotify.com/v1/search?q=${encodeURIComponent(
+            query
+          )}&type=track&limit=10`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+        if (!response.ok) continue;
 
-      if (data.tracks && Array.isArray(data.tracks.items)) {
-        allTracks.push(...data.tracks.items);
+        const data = await response.json();
+
+        if (data.tracks && Array.isArray(data.tracks.items)) {
+          candidateTracks.push(...data.tracks.items);
+        }
+      } catch {
+        // ignoramos errores de género individual
       }
     }
   }
 
-  // 3. Filtrar por décadas y/o rango manual de años
+  // 3. Filtrar candidatos por décadas y/o rango manual de años
   const fromYear = yearRange?.fromYear ?? null;
   const toYear = yearRange?.toYear ?? null;
 
   if ((decades && decades.length > 0) || fromYear || toYear) {
-    allTracks = allTracks.filter((track) => {
+    candidateTracks = candidateTracks.filter((track) => {
       const date = track.album?.release_date || track.release_date;
       if (!date) return true;
 
@@ -82,18 +107,29 @@ export async function generatePlaylist(preferences) {
     });
   }
 
-  // 4. Filtrar por popularidad
+  // 4. Filtrar candidatos por popularidad
   if (popularity) {
     const [min, max] = popularity;
-    allTracks = allTracks.filter(
+    candidateTracks = candidateTracks.filter(
       (track) => track.popularity >= min && track.popularity <= max
     );
   }
 
-  // 5. Eliminar duplicados y limitar a 30 canciones
-  const uniqueTracks = Array.from(
-    new Map(allTracks.map((track) => [track.id, track])).values()
-  ).slice(0, 30);
+  // 5. Eliminar duplicados entre candidatos
+  const candidateMap = new Map();
+  for (const track of candidateTracks) {
+    if (track && track.id) {
+      candidateMap.set(track.id, track);
+    }
+  }
+  const uniqueCandidates = Array.from(candidateMap.values());
 
-  return uniqueTracks;
+  // 6. Combinar favoritos + candidatos, sin duplicar, priorizando favoritos
+  const merged = [
+    ...favoritesUnique,
+    ...uniqueCandidates.filter((track) => !favoritesMap.has(track.id)),
+  ];
+
+  // 7. Limitar a 30 canciones
+  return merged.slice(0, 30);
 }
