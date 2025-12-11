@@ -77,3 +77,51 @@ Si el proyecto Next.js está en una subcarpeta (como `spotify/`), asegúrate de 
 ## Variables de entorno necesarias
 
 Ver el archivo `.env.example` para una lista completa de las variables de entorno requeridas.
+
+---
+
+## Desarrollo local
+
+Si quieres trabajar en tu máquina local antes de desplegar a Vercel:
+
+### 1. Configurar Spotify para desarrollo local
+
+En tu aplicación de Spotify Dashboard, añade esta Redirect URI adicional:
+```
+http://localhost:3000/auth/callback
+```
+
+### 2. Crear archivo .env.local
+
+Copia el archivo `.env.local.example` como `.env.local`:
+
+```bash
+cp .env.local.example .env.local
+```
+
+Luego edita `.env.local` con tus credenciales:
+
+```env
+NEXT_PUBLIC_SPOTIFY_CLIENT_ID=tu_client_id_real
+SPOTIFY_CLIENT_SECRET=tu_client_secret_real
+NEXT_PUBLIC_REDIRECT_URI=http://localhost:3000/auth/callback
+```
+
+**IMPORTANTE:** El archivo `.env.local` está en `.gitignore` y NO se subirá a GitHub (por seguridad).
+
+### 3. Instalar dependencias y ejecutar
+
+```bash
+cd spotify
+npm install
+npm run dev
+```
+
+La aplicación estará disponible en `http://localhost:3000`
+
+### 4. Alternar entre local y producción
+
+- Para **desarrollo local**: usa `.env.local` con `http://localhost:3000/auth/callback`
+- Para **producción en Vercel**: configura las variables de entorno en Vercel con `https://nextjs-spotify-adriana-alamo.vercel.app/auth/callback`
+
+Next.js automáticamente prioriza `.env.local` sobre `.env` cuando existe.
