@@ -5,57 +5,57 @@ import { useState, useMemo } from "react";
 const DECADE_CASEFILES = [
   {
     decade: "1920",
-    title: "1920s · roaring twenties",
+    title: "1920 – Roaring twenties, tossing pennies in the pool",
     note: "Jazz, brillo y primeras notas en la escena.",
   },
   {
     decade: "1930",
-    title: "1930s · silver screens & swing",
+    title: "1930 – Watched as you signed your name Marjorie",
     note: "La era del swing, grandes escenarios y primeras divas del sonido.",
   },
   {
     decade: "1940",
-    title: "1940s · wartime chronicles",
+    title: "1940 – I met Bobby on the boardwalk summer of '45",
     note: "Crooners, bandas y la música que llenaba hogares en tiempos inciertos.",
   },
   {
     decade: "1950",
-    title: "1950s · vinyl beginnings",
+    title: "1950 – The 1950s shit they want from me",
     note: "Baladas clásicas y primeros iconos del pop.",
   },
   {
     decade: "1960",
-    title: "1960s · revolution on the radio",
+    title: "1960 – So overnight, you look like a '60s queen",
     note: "Bandas legendarias cambiando el sonido para siempre.",
   },
   {
     decade: "1970",
-    title: "1970s · golden records",
+    title: "1970 – Thats a real fucking legacy",
     note: "Rock, disco y guitarras que llenan estadios.",
   },
   {
     decade: "1980",
-    title: "1980s · neon synths",
+    title: "1980 – My name is Taylor. I was borned in 1989",
     note: "Sintetizadores, himnos y videoclips icónicos.",
   },
   {
     decade: "1990",
-    title: "1990s · comeback stronger than a 90s trend",
+    title: "1990 – Comeback stronger than a nineties trend",
     note: "Pop, R&B y bandas sonoras de tu infancia.",
   },
   {
     decade: "2000",
-    title: "2000s · burning red beginnings",
+    title: "2000 – It was the end of an era, but the start of an age",
     note: "Pop-rock, country-pop y los primeros grandes hits.",
   },
   {
     decade: "2010",
-    title: "2010s · starlit arenas",
+    title: "2010 – I'm only 17, I don't know anything",
     note: "Eras gigantes, tours mundiales y streaming.",
   },
   {
     decade: "2020",
-    title: "2020s · folklore stories",
+    title: "2020 – I don't know about you, but I'm felling 22",
     note: "Introspección, playlists infinitas y noches en bucle.",
   },
 ];
