@@ -59,7 +59,6 @@ function GenreWidget({ onChange }) {
     setCustomGenre("");
   };
 
-  // Cargar géneros reales desde Spotify
   useEffect(() => {
     const token = getAccessToken();
     if (!token) {
@@ -93,7 +92,6 @@ function GenreWidget({ onChange }) {
           setSuggestedGenres(data.genres);
         }
       } catch (err) {
-        // Mantenemos FALLBACK_GENRES, solo informamos
         setError(
           "No se pudieron cargar los géneros desde Spotify. Usando lista por defecto."
         );
@@ -112,53 +110,78 @@ function GenreWidget({ onChange }) {
   });
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-red-400/70 bg-gradient-to-b from-[#3b1212] via-black to-black p-4 shadow-[0_0_40px_rgba(248,113,113,0.65)]">
-      {/* halos rojos */}
-      <div className="pointer-events-none absolute -top-12 left-0 h-40 w-40 rounded-full bg-[radial-gradient(circle,_rgba(248,113,113,0.5),_transparent_60%)] blur-xl" />
-      <div className="pointer-events-none absolute -bottom-16 right-0 h-40 w-40 rounded-full bg-[radial-gradient(circle,_rgba(127,29,29,0.6),_transparent_60%)] blur-xl" />
+    <div className="relative overflow-hidden rounded-2xl border-2 border-red-400/80 bg-gradient-to-br from-red-900/60 via-red-950/80 to-black p-4 shadow-[0_8px_32px_rgba(239,68,68,0.4)]">
+      <div className="pointer-events-none absolute -top-20 -left-20 h-56 w-56 rounded-full bg-[radial-gradient(circle,_rgba(239,68,68,0.3),_transparent_70%)] blur-2xl" />
+      <div className="pointer-events-none absolute -bottom-24 -right-24 h-64 w-64 rounded-full bg-[radial-gradient(circle,_rgba(185,28,28,0.25),_transparent_70%)] blur-2xl" />
+      
+      <div className="pointer-events-none absolute inset-0 bg-[url('/noise.png')] opacity-20 mix-blend-overlay" />
 
-      <div className="relative space-y-3">
-        {/* Cabecera Red */}
-        <div className="flex items-start justify-between gap-2">
-          <div className="space-y-1">
-            <p className="inline-flex items-center rounded-full border border-red-300/80 bg-black/50 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.25em] text-red-100">
-              Red · genres
-            </p>
-            <h3 className="text-sm font-semibold tracking-tight text-red-50">
+      <div className="relative space-y-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-2 rounded-full border-2 border-red-300/70 bg-black/60 px-4 py-1.5 backdrop-blur-sm shadow-lg">
+              <div className="h-2 w-2 rounded-full bg-red-400 animate-pulse shadow-[0_0_10px_rgba(248,113,113,0.8)]" />
+              <p className="text-[10px] font-black uppercase tracking-[0.26em] text-red-100">
+                Red - Genres
+              </p>
+            </div>
+            <h3 className="text-sm font-bold tracking-tight text-red-50 drop-shadow-md">
               Géneros que colorean tu historia
             </h3>
-            <p className="text-[11px] text-red-100/85">
+            <p className="text-[11px] text-red-100/90 leading-relaxed font-medium">
               Elige los géneros que quieres que definan el tono de tu playlist.
               Puedes combinar sugerencias y añadir los tuyos propios.
             </p>
           </div>
-          <span className="mt-1 text-[10px] uppercase tracking-[0.20em] text-red-200/80">
-            Widget
-          </span>
+
+          <div className="rounded-xl border-2 border-red-300/60 bg-black/70 px-3 py-2 text-right backdrop-blur-sm shadow-xl">
+            <p className="text-[9px] uppercase tracking-[0.24em] text-red-300 font-bold">
+              Selected
+            </p>
+            <p className="text-2xl font-black text-transparent bg-gradient-to-r from-red-400 to-rose-600 bg-clip-text">
+              {selectedGenres.length}
+            </p>
+            <p className="text-[9px] font-bold text-red-400">
+              genres
+            </p>
+          </div>
         </div>
 
-        {/* Estado de carga / error */}
         {isLoading && (
-          <p className="text-[11px] text-red-200/80">
-            Cargando géneros desde Spotify…
-          </p>
+          <div className="rounded-lg border-2 border-red-400/50 bg-red-900/20 px-4 py-2 backdrop-blur-sm">
+            <p className="text-[11px] text-red-200 font-medium">
+              Cargando géneros desde Spotify...
+            </p>
+          </div>
         )}
+        
         {error && (
-          <p className="text-[11px] text-red-300/90">
-            {error}
-          </p>
+          <div className="rounded-lg border-2 border-red-400/60 bg-red-900/30 px-4 py-2 backdrop-blur-sm">
+            <p className="text-[11px] text-red-200 font-medium">
+              {error}
+            </p>
+          </div>
         )}
 
-        {/* Géneros seleccionados */}
-        <div className="space-y-1">
-          <p className="text-[11px] font-medium text-red-50">
-            Géneros seleccionados
-          </p>
-          {selectedGenres.length === 0 ? (
-            <p className="text-[11px] text-red-100/70">
-              Aún no has elegido ningún género. Empieza seleccionando algunos
-              de la lista o añade los tuyos.
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] font-bold text-red-50 uppercase tracking-wide">
+              Géneros seleccionados
             </p>
+            {selectedGenres.length > 0 && (
+              <span className="text-[10px] text-red-300/80 font-semibold">
+                {selectedGenres.length} activos
+              </span>
+            )}
+          </div>
+          
+          {selectedGenres.length === 0 ? (
+            <div className="rounded-xl border-2 border-red-400/40 bg-black/50 px-4 py-3 backdrop-blur-sm">
+              <p className="text-[11px] text-red-100/70 leading-relaxed">
+                Aún no has elegido ningún género. Empieza seleccionando algunos
+                de la lista o añade los tuyos.
+              </p>
+            </div>
           ) : (
             <div className="flex flex-wrap gap-2">
               {selectedGenres.map((genre) => (
@@ -166,11 +189,11 @@ function GenreWidget({ onChange }) {
                   key={genre}
                   type="button"
                   onClick={() => toggleGenre(genre)}
-                  className="group rounded-full border border-red-300/80 bg-red-800/70 px-3 py-1 text-[11px] text-red-50 shadow-[0_0_14px_rgba(248,113,113,0.8)] transition hover:bg-black hover:text-red-200"
+                  className="group rounded-full border-2 border-red-300/90 bg-gradient-to-r from-red-700/80 to-red-800/80 px-4 py-2 text-[11px] font-bold text-red-50 shadow-[0_4px_16px_rgba(239,68,68,0.5)] transition-all duration-300 hover:scale-105 hover:shadow-[0_6px_24px_rgba(239,68,68,0.7)] hover:bg-gradient-to-r hover:from-black hover:to-red-950"
                 >
                   <span>{genre}</span>
-                  <span className="ml-1 text-[10px] text-red-200/90 group-hover:text-red-300">
-                    · Quitar
+                  <span className="ml-2 text-[10px] text-red-200/90 group-hover:text-red-300 font-semibold">
+                    Quitar
                   </span>
                 </button>
               ))}
@@ -178,26 +201,29 @@ function GenreWidget({ onChange }) {
           )}
         </div>
 
-        {/* Filtro de géneros */}
-        <div className="space-y-1">
-          <p className="text-[11px] font-medium text-red-50">
+        <div className="space-y-3">
+          <p className="text-[11px] font-bold text-red-50 uppercase tracking-wide">
             Buscar en géneros disponibles
           </p>
-          <input
-            type="text"
-            value={genreFilter}
-            onChange={(e) => setGenreFilter(e.target.value)}
-            placeholder="Escribe para filtrar géneros (ej. pop, indie)..."
-            className="w-full rounded-full border border-red-300/70 bg-black/60 px-3 py-2 text-xs text-red-50 placeholder:text-red-200/60 focus:outline-none focus:ring-2 focus:ring-red-300/80"
-          />
-          <p className="text-[10px] text-red-200/70">
+          
+          <div className="relative">
+            <input
+              type="text"
+              value={genreFilter}
+              onChange={(e) => setGenreFilter(e.target.value)}
+              placeholder="Escribe para filtrar géneros..."
+              className="w-full rounded-full border-2 border-red-300/70 bg-black/70 px-4 py-2.5 text-xs font-medium text-red-50 placeholder:text-red-300/60 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-red-400 shadow-inner"
+            />
+            <div className="absolute inset-0 rounded-full bg-gradient-to-r from-red-500/5 to-transparent pointer-events-none" />
+          </div>
+          
+          <p className="text-[10px] text-red-200/70 font-medium">
             Se muestran los géneros que coinciden con tu búsqueda.
           </p>
         </div>
 
-        {/* Sugerencias de géneros (Spotify o fallback) */}
-        <div className="space-y-1">
-          <p className="text-[11px] font-medium text-red-50">
+        <div className="space-y-3">
+          <p className="text-[11px] font-bold text-red-50 uppercase tracking-wide">
             Sugerencias
           </p>
           <div className="flex flex-wrap gap-2">
@@ -211,10 +237,10 @@ function GenreWidget({ onChange }) {
                   type="button"
                   onClick={() => toggleGenre(genre)}
                   className={[
-                    "rounded-full border px-3 py-1 text-[10px] capitalize transition",
+                    "rounded-full border-2 px-4 py-1.5 text-[10px] font-bold capitalize transition-all duration-300",
                     active
-                      ? "border-red-300 bg-red-600/90 text-red-50 shadow-[0_0_12px_rgba(248,113,113,0.7)]"
-                      : "border-red-700/80 bg-black/60 text-red-100/85 hover:border-red-300 hover:bg-red-800/60",
+                      ? "border-red-300 bg-gradient-to-r from-red-600 to-red-700 text-red-50 shadow-[0_4px_16px_rgba(239,68,68,0.6)] scale-105"
+                      : "border-red-700/80 bg-black/70 text-red-100/85 hover:border-red-400 hover:bg-red-800/60 hover:scale-105 hover:shadow-[0_4px_12px_rgba(239,68,68,0.4)]",
                   ].join(" ")}
                 >
                   {genre}
@@ -222,34 +248,52 @@ function GenreWidget({ onChange }) {
               );
             })}
             {filteredGenres.length === 0 && (
-              <p className="text-[11px] text-red-100/70">
-                Ningún género coincide con tu búsqueda.
-              </p>
+              <div className="w-full rounded-xl border-2 border-red-400/40 bg-black/50 px-4 py-3 backdrop-blur-sm">
+                <p className="text-[11px] text-red-100/70">
+                  Ningún género coincide con tu búsqueda.
+                </p>
+              </div>
             )}
           </div>
         </div>
 
-        {/* Añadir género personalizado */}
-        <form onSubmit={handleAddCustom} className="space-y-1">
-          <p className="text-[11px] font-medium text-red-50">
+        <form onSubmit={handleAddCustom} className="space-y-3">
+          <p className="text-[11px] font-bold text-red-50 uppercase tracking-wide">
             Añadir género personalizado
           </p>
           <div className="flex gap-2">
-            <input
-              type="text"
-              value={customGenre}
-              onChange={(e) => setCustomGenre(e.target.value)}
-              placeholder="Por ejemplo: dream pop, indie folk…"
-              className="flex-1 rounded-full border border-red-300/70 bg-black/60 px-3 py-2 text-xs text-red-50 placeholder:text-red-200/60 focus:outline-none focus:ring-2 focus:ring-red-300/80"
-            />
+            <div className="relative flex-1">
+              <input
+                type="text"
+                value={customGenre}
+                onChange={(e) => setCustomGenre(e.target.value)}
+                placeholder="Por ejemplo: dream pop, indie folk..."
+                className="w-full rounded-full border-2 border-red-300/70 bg-black/70 px-4 py-2.5 text-xs font-medium text-red-50 placeholder:text-red-300/60 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-red-400 shadow-inner"
+              />
+              <div className="absolute inset-0 rounded-full bg-gradient-to-r from-red-500/5 to-transparent pointer-events-none" />
+            </div>
             <button
               type="submit"
-              className="rounded-full border border-red-200/80 bg-red-300 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.20em] text-slate-900 shadow-[0_0_16px_rgba(248,113,113,0.8)] transition hover:bg-red-200"
+              className="rounded-full border-2 border-red-300/90 bg-gradient-to-r from-red-500 to-red-600 px-6 py-2.5 text-[11px] font-black uppercase tracking-[0.20em] text-white shadow-[0_4px_16px_rgba(239,68,68,0.6)] transition-all duration-300 hover:scale-105 hover:shadow-[0_6px_24px_rgba(239,68,68,0.8)] hover:from-red-400 hover:to-red-500"
             >
               Añadir
             </button>
           </div>
         </form>
+
+        <div className="flex items-center justify-between pt-2 border-t-2 border-red-900/50">
+          <div className="text-[9px] text-red-300/70 font-bold uppercase tracking-wider">
+            All Too Well Era
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="h-1.5 w-1.5 rounded-full bg-red-400 shadow-[0_0_6px_rgba(248,113,113,0.8)]" />
+            <div className="h-1.5 w-1.5 rounded-full bg-rose-400 shadow-[0_0_6px_rgba(251,113,133,0.8)]" />
+            <div className="h-1.5 w-1.5 rounded-full bg-red-600 shadow-[0_0_6px_rgba(220,38,38,0.8)]" />
+          </div>
+          <div className="text-[9px] text-red-300/70 font-bold uppercase tracking-wider">
+            Genre Selection
+          </div>
+        </div>
       </div>
     </div>
   );
