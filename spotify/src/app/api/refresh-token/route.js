@@ -5,6 +5,7 @@ export async function POST(request) {
     const { refresh_token } = await request.json();
 
     if (!refresh_token) {
+      console.error('Refresh token no proporcionado');
       return NextResponse.json(
         { error: 'Refresh token no proporcionado' },
         { status: 400 }
@@ -13,6 +14,17 @@ export async function POST(request) {
 
     const clientId = process.env.SPOTIFY_CLIENT_ID;
     const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
+
+    // Validar variables de entorno
+    if (!clientId || !clientSecret) {
+      console.error('Variables de entorno faltantes para refresh token');
+      return NextResponse.json(
+        { error: 'Configuración del servidor incompleta' },
+        { status: 500 }
+      );
+    }
+
+    console.log('Refrescando access token...');
 
     const response = await fetch('https://accounts.spotify.com/api/token', {
       method: 'POST',
@@ -31,11 +43,17 @@ export async function POST(request) {
     const data = await response.json();
 
     if (!response.ok) {
+      console.error('Error al refrescar token:', data);
       return NextResponse.json(
-        { error: 'Error al refrescar token' },
+        { 
+          error: data.error_description || 'Error al refrescar token',
+          details: data
+        },
         { status: response.status }
       );
     }
+
+    console.log('Token refrescado exitosamente');
 
     return NextResponse.json({
       access_token: data.access_token,
@@ -45,7 +63,10 @@ export async function POST(request) {
   } catch (error) {
     console.error('Error al refrescar token:', error);
     return NextResponse.json(
-      { error: 'Error interno del servidor' },
+      { 
+        error: 'Error interno del servidor',
+        message: error.message
+      },
       { status: 500 }
     );
   }

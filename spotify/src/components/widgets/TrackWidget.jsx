@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getAccessToken } from "@/lib/auth";
+import { getAccessToken, refreshAccessToken } from "@/lib/auth";
 
 const MAX_SELECTED_TRACKS = 5;
 
@@ -34,13 +34,15 @@ function TrackWidget({ onChange }) {
     if (exists) {
       const next = selectedTracks.filter((t) => t.id !== track.id);
       updateSelection(next);
+      console.log('DELETED: Track eliminado:', track.name);
     } else {
       if (selectedTracks.length >= MAX_SELECTED_TRACKS) {
-        // Simplemente ignoramos selecciones adicionales
+        console.log('WARNING: Límite de tracks alcanzado');
         return;
       }
       const next = [...selectedTracks, track];
       updateSelection(next);
+      console.log('OK: Track añadido:', track.name);
     }
   };
 
@@ -54,11 +56,9 @@ function TrackWidget({ onChange }) {
       return;
     }
 
-    const token = getAccessToken();
+    let token = getAccessToken();
     if (!token) {
-      setError(
-        "No se encontró un token válido. Vuelve a iniciar sesión para buscar canciones."
-      );
+      setError("Sesión expirada. Por favor, vuelve a iniciar sesión.");
       setResults([]);
       setIsSearching(false);
       return;
@@ -71,7 +71,9 @@ function TrackWidget({ onChange }) {
 
     const handler = setTimeout(async () => {
       try {
-        const response = await fetch(
+        console.log('SEARCH: Buscando tracks:', query);
+
+        let response = await fetch(
           `https://api.spotify.com/v1/search?type=track&q=${encodeURIComponent(
             query
           )}&limit=10`,
@@ -82,19 +84,41 @@ function TrackWidget({ onChange }) {
           }
         );
 
+        // Si el token expiró, refrescar
+        if (response.status === 401) {
+          console.log('PROCESSING: Token expirado, refrescando...');
+          token = await refreshAccessToken();
+          
+          if (!token) {
+            throw new Error('No se pudo refrescar el token');
+          }
+
+          response = await fetch(
+            `https://api.spotify.com/v1/search?type=track&q=${encodeURIComponent(
+              query
+            )}&limit=10`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          );
+        }
+
         if (!response.ok) {
-          throw new Error("Error al buscar canciones en Spotify");
+          throw new Error(`Error ${response.status}: ${response.statusText}`);
         }
 
         const data = await response.json();
         if (!cancelled) {
-          setResults(data.tracks?.items || []);
+          const tracks = data.tracks?.items || [];
+          setResults(tracks);
+          console.log(`OK: ${tracks.length} tracks encontrados`);
         }
       } catch (err) {
+        console.error('ERROR: Error buscando tracks:', err);
         if (!cancelled) {
-          setError(
-            "No se pudieron cargar resultados. Inténtalo de nuevo más tarde."
-          );
+          setError(err.message || "No se pudieron cargar resultados. Inténtalo de nuevo.");
           setResults([]);
         }
       } finally {
@@ -177,9 +201,9 @@ function TrackWidget({ onChange }) {
           </p>
         )}
         {error && (
-          <p className="text-[11px] text-rose-300/90">
-            {error}
-          </p>
+          <div className="rounded-lg border border-rose-500/50 bg-rose-900/20 px-3 py-2">
+            <p className="text-[11px] text-rose-300">{error}</p>
+          </div>
         )}
         {!isSearching && hasSearched && results.length === 0 && !error && (
           <p className="text-[11px] text-sky-100/70">
@@ -199,13 +223,13 @@ function TrackWidget({ onChange }) {
                   key={track.id}
                   type="button"
                   onClick={() => toggleTrack(track)}
-                  className="group flex items-center gap-2 rounded-full border border-sky-300/80 bg-sky-900/60 px-3 py-1 text-[11px] text-sky-50 shadow-[0_0_14px_rgba(56,189,248,0.8)] hover:bg-black"
+                  className="group flex items-center gap-2 rounded-full border border-sky-300/80 bg-sky-900/60 px-3 py-1 text-[11px] text-sky-50 shadow-[0_0_14px_rgba(56,189,248,0.8)] hover:bg-black transition"
                 >
                   <span className="truncate max-w-[130px]">
                     {track.name}
                   </span>
                   <span className="text-[10px] text-sky-200 group-hover:text-sky-300">
-                    · Quitar
+                    - Quitar
                   </span>
                 </button>
               ))}

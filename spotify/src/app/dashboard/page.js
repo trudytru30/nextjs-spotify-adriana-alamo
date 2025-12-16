@@ -13,6 +13,7 @@ import MoodWidget from "@/components/widgets/MoodWidget";
 import FavoritesWidget from "@/components/widgets/FavoritesWidget";
 import TrackWidget from "@/components/widgets/TrackWidget";
 
+// Convertir valor de popularidad simple a rango [min, max]
 function mapPopularityToRange(value) {
   if (value <= 30) return [0, 50];
   if (value <= 60) return [30, 80];
@@ -29,7 +30,7 @@ function formatDuration(ms) {
   return `${minutes}:${paddedSeconds}`;
 }
 
-// Etiquetas para los presets de álbum que envía el MoodWidget
+// Labels para los presets de álbum
 const MOOD_ALBUM_LABELS = {
   debut: "Debut",
   fearless: "Fearless",
@@ -46,47 +47,7 @@ const MOOD_ALBUM_LABELS = {
 
 const PREFERENCES_STORAGE_KEY = "tasteMixerPreferences";
 
-// Ajustes automáticos de preferencias según el mood/álbum
-function adjustPreferencesForMood(preferences, mood) {
-  if (!mood || !mood.preset) return preferences;
-
-  const adjusted = { ...preferences };
-
-  // Ajustar popularidad según la era
-  if (Array.isArray(preferences.popularity)) {
-    let [min, max] = preferences.popularity;
-
-    switch (mood.preset) {
-      // Eras más íntimas / deep cuts -> bajamos popularidad media
-      case "folklore":
-      case "evermore":
-      case "ttpd":
-        min = Math.max(0, min - 10);
-        max = Math.min(100, max - 10);
-        break;
-
-      // Eras muy mainstream / hits fuertes -> subimos popularidad
-      case "1989":
-      case "reputation":
-      case "lover":
-        min = Math.min(100, min + 10);
-        max = Math.min(100, max + 10);
-        break;
-
-      // Resto: mantenemos rango tal cual marque el slider
-      default:
-        break;
-    }
-
-    adjusted.popularity = [min, max];
-  }
-
-  // No asignamos décadas automáticamente; las controla el usuario.
-
-  return adjusted;
-}
-
-// Fusionar listas de tracks sin duplicar por id
+// Fusionar tracks sin duplicados
 function mergeTracksUnique(current, incoming) {
   const map = new Map(current.map((t) => [t.id, t]));
   for (const track of incoming) {
@@ -107,7 +68,7 @@ function DashboardPage() {
   const [decades, setDecades] = useState([]);
   const [yearRange, setYearRange] = useState({ fromYear: null, toYear: null });
   const [popularity, setPopularity] = useState(70);
-  const [mood, setMood] = useState(null); // objeto { preset, energy, valence, danceability, acousticness }
+  const [mood, setMood] = useState(null);
 
   // PLAYLIST GENERADA
   const [tracks, setTracks] = useState([]);
@@ -117,25 +78,45 @@ function DashboardPage() {
   // FAVORITOS
   const [favoriteTracks, setFavoriteTracks] = useState([]);
 
-  // Flag para saber cuándo hemos cargado preferencias desde localStorage
+  // Control de carga de preferencias
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
-  // Derivamos el nombre del álbum/era actual a partir del preset del mood
+  // Derivar nombre del álbum/era actual
   const currentMoodAlbum =
     mood && mood.preset
       ? MOOD_ALBUM_LABELS[mood.preset] || mood.preset
       : null;
 
-  // Cargar preferencias desde localStorage al iniciar
+  // Protección de ruta - verificar autenticación
   useEffect(() => {
+    console.log('Verificando autenticación en dashboard...');
+    
+    if (!isAuthenticated()) {
+      console.log('No autenticado, redirigiendo al login...');
+      router.replace("/");
+    } else {
+      console.log('Usuario autenticado');
+      setIsCheckingAuth(false);
+    }
+  }, [router]);
+
+  // Cargar preferencias desde localStorage
+  useEffect(() => {
+    if (isCheckingAuth) return;
+
     try {
+      console.log('Cargando preferencias guardadas...');
       const raw = localStorage.getItem(PREFERENCES_STORAGE_KEY);
+      
       if (!raw) {
+        console.log('No hay preferencias guardadas');
         setPreferencesLoaded(true);
         return;
       }
 
       const parsed = JSON.parse(raw);
+      console.log('Preferencias cargadas:', parsed);
 
       if (parsed.artists) setArtists(parsed.artists);
       if (parsed.seedTracks) setSeedTracks(parsed.seedTracks);
@@ -146,16 +127,16 @@ function DashboardPage() {
         setPopularity(parsed.popularity);
       }
       if (parsed.mood) setMood(parsed.mood);
-    } catch {
-      // ignoramos errores de parseo
+    } catch (err) {
+      console.error('Error cargando preferencias:', err);
     } finally {
       setPreferencesLoaded(true);
     }
-  }, []);
+  }, [isCheckingAuth]);
 
   // Guardar preferencias en localStorage cuando cambien
   useEffect(() => {
-    if (!preferencesLoaded) return;
+    if (!preferencesLoaded || isCheckingAuth) return;
 
     const payload = {
       artists,
@@ -169,8 +150,9 @@ function DashboardPage() {
 
     try {
       localStorage.setItem(PREFERENCES_STORAGE_KEY, JSON.stringify(payload));
-    } catch {
-      // ignoramos errores de storage (cuota, etc.)
+      console.log('Preferencias guardadas');
+    } catch (err) {
+      console.error('Error guardando preferencias:', err);
     }
   }, [
     artists,
@@ -181,33 +163,38 @@ function DashboardPage() {
     popularity,
     mood,
     preferencesLoaded,
+    isCheckingAuth,
   ]);
 
-  // Cargar favoritos desde localStorage al iniciar
+  // Cargar favoritos desde localStorage
   useEffect(() => {
-    const stored = localStorage.getItem("favoriteTracks");
-    if (stored) {
-      try {
-        setFavoriteTracks(JSON.parse(stored));
-      } catch {
-        // ignoramos errores de parseo
+    if (isCheckingAuth) return;
+
+    try {
+      const stored = localStorage.getItem("favoriteTracks");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        setFavoriteTracks(parsed);
+        console.log('Favoritos cargados:', parsed.length);
       }
+    } catch (err) {
+      console.error('Error cargando favoritos:', err);
     }
-  }, []);
+  }, [isCheckingAuth]);
 
   // Guardar favoritos en localStorage cuando cambien
   useEffect(() => {
-    localStorage.setItem("favoriteTracks", JSON.stringify(favoriteTracks));
-  }, [favoriteTracks]);
+    if (isCheckingAuth) return;
 
-  // Protección de ruta
-  useEffect(() => {
-    if (!isAuthenticated()) {
-      router.replace("/");
+    try {
+      localStorage.setItem("favoriteTracks", JSON.stringify(favoriteTracks));
+    } catch (err) {
+      console.error('Error guardando favoritos:', err);
     }
-  }, [router]);
+  }, [favoriteTracks, isCheckingAuth]);
 
   const handleLogout = () => {
+    console.log('Cerrando sesión...');
     logout();
     router.replace("/");
   };
@@ -217,8 +204,10 @@ function DashboardPage() {
     setFavoriteTracks((prev) => {
       const exists = prev.some((t) => t.id === track.id);
       if (exists) {
+        console.log('Eliminando favorito:', track.name);
         return prev.filter((t) => t.id !== track.id);
       }
+      console.log('Añadiendo favorito:', track.name);
       return [...prev, track];
     });
   };
@@ -226,49 +215,52 @@ function DashboardPage() {
   // Eliminar track del setlist
   const removeTrack = (trackId) => {
     setTracks((prev) => prev.filter((t) => t.id !== trackId));
+    console.log('Track eliminado del setlist');
   };
 
-  // Construir preferencias finales (widgets + mood + favoritos)
+  // Construir preferencias finales
   const buildFinalPreferences = () => {
     const popularityRange = Array.isArray(popularity)
       ? popularity
       : mapPopularityToRange(popularity);
 
-    const basePreferences = {
+    return {
       artists,
       genres,
       decades,
       yearRange,
       popularity: popularityRange,
-      mood, // objeto completo
-      seedTracks, // reservado para futuros usos
-      favoriteTracks, // ahora influyen en generatePlaylist
+      mood,
+      seedTracks,
+      favoriteTracks,
     };
-
-    return adjustPreferencesForMood(basePreferences, mood);
   };
 
-  // Generar / refrescar playlist (reemplaza la lista actual)
+  // Generar / refrescar playlist
   const handleGeneratePlaylist = async () => {
     setError("");
+    console.log('Generando nueva playlist...');
 
     const finalPreferences = buildFinalPreferences();
+    console.log('Preferencias finales:', finalPreferences);
 
     try {
       setIsGenerating(true);
       const newTracks = await generatePlaylist(finalPreferences);
       setTracks(newTracks);
+      console.log(`Playlist generada con ${newTracks.length} canciones`);
     } catch (err) {
-      console.error(err);
-      setError("Hubo un problema al generar la playlist.");
+      console.error('Error generando playlist:', err);
+      setError(err.message || "Hubo un problema al generar la playlist.");
     } finally {
       setIsGenerating(false);
     }
   };
 
-  // Añadir más canciones sin perder las actuales (merge sin duplicados)
+  // Añadir más canciones sin perder las actuales
   const handleAddMoreTracks = async () => {
     setError("");
+    console.log('Añadiendo más canciones...');
 
     const finalPreferences = buildFinalPreferences();
 
@@ -276,13 +268,26 @@ function DashboardPage() {
       setIsGenerating(true);
       const moreTracks = await generatePlaylist(finalPreferences);
       setTracks((prev) => mergeTracksUnique(prev, moreTracks));
+      console.log(`Añadidas más canciones`);
     } catch (err) {
-      console.error(err);
-      setError("Hubo un problema al añadir más canciones.");
+      console.error('Error añadiendo canciones:', err);
+      setError(err.message || "Hubo un problema al añadir más canciones.");
     } finally {
       setIsGenerating(false);
     }
   };
+
+  // Pantalla de carga mientras verifica autenticación
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-purple-900 via-slate-950 to-black flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
+          <p className="text-zinc-300">Verificando autenticación...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-purple-900 via-slate-950 to-black text-white">
@@ -308,7 +313,7 @@ function DashboardPage() {
             <button
               type="button"
               onClick={handleLogout}
-              className="rounded-full border border-white/30 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.18em] hover:bg-white/15"
+              className="rounded-full border border-white/30 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.18em] hover:bg-white/15 transition"
             >
               Cerrar sesión
             </button>
@@ -339,7 +344,7 @@ function DashboardPage() {
                   Artistas: {artists.length}
                 </span>
                 <span className="rounded-full bg-black/40 px-3 py-1">
-                  Tracks semilla: {seedTracks.length}
+                  Tracks: {seedTracks.length}
                 </span>
                 <span className="rounded-full bg-black/40 px-3 py-1">
                   Géneros: {genres.length}
@@ -350,7 +355,7 @@ function DashboardPage() {
 
           {/* LAYOUT DOS COLUMNAS */}
           <section className="grid gap-5 lg:grid-cols-[2fr_2.2fr]">
-            {/* IZQUIERDA – Widgets */}
+            {/* IZQUIERDA - Widgets */}
             <div className="space-y-4">
               <ArtistWidget onChange={setArtists} />
               <TrackWidget onChange={setSeedTracks} />
@@ -363,7 +368,7 @@ function DashboardPage() {
               <PopularityWidget onChange={setPopularity} />
             </div>
 
-            {/* DERECHA – Setlist + Favoritas */}
+            {/* DERECHA - Setlist + Favoritas */}
             <div className="space-y-4">
               {/* SETLIST */}
               <div className="rounded-2xl border border-white/10 bg-black/60 p-4 backdrop-blur">
@@ -376,7 +381,7 @@ function DashboardPage() {
                     </span>
                     {currentMoodAlbum && (
                       <span className="block text-[10px] text-zinc-400">
-                        Mood actual basado en:{" "}
+                        Mood actual:{" "}
                         <span className="font-semibold text-zinc-200">
                           {currentMoodAlbum}
                         </span>
@@ -388,7 +393,7 @@ function DashboardPage() {
                     <button
                       onClick={handleGeneratePlaylist}
                       disabled={isGenerating}
-                      className="rounded-full border border-white/30 bg-white/5 px-3 py-1 text-[10px] uppercase tracking-[0.2em] hover:bg-white/15 disabled:opacity-40"
+                      className="rounded-full border border-white/30 bg-white/5 px-3 py-1 text-[10px] uppercase tracking-[0.2em] hover:bg-white/15 disabled:opacity-40 transition"
                     >
                       {tracks.length === 0
                         ? isGenerating
@@ -401,17 +406,21 @@ function DashboardPage() {
                     <button
                       onClick={handleAddMoreTracks}
                       disabled={isGenerating || tracks.length === 0}
-                      className="rounded-full border border-white/25 bg-transparent px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-zinc-200 hover:bg-white/10 disabled:opacity-30"
+                      className="rounded-full border border-white/25 bg-transparent px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-zinc-200 hover:bg-white/10 disabled:opacity-30 transition"
                     >
-                      {isGenerating ? "Añadiendo..." : "Añadir más canciones"}
+                      {isGenerating ? "Añadiendo..." : "Añadir más"}
                     </button>
                   </div>
                 </div>
 
-                {error && <p className="mt-2 text-rose-300">{error}</p>}
+                {error && (
+                  <div className="mt-2 rounded-lg border border-rose-500/50 bg-rose-900/20 px-3 py-2">
+                    <p className="text-sm text-rose-300">{error}</p>
+                  </div>
+                )}
 
                 {/* LISTA DE TEMAS */}
-                <ul className="mt-3 space-y-2 text-[11px] text-zinc-200">
+                <ul className="mt-3 space-y-2 text-[11px] text-zinc-200 max-h-[600px] overflow-y-auto pr-2">
                   {tracks.map((track) => {
                     const artistsNames = track.artists
                       ?.map((a) => a.name)
@@ -421,18 +430,24 @@ function DashboardPage() {
                       track.album.images.length > 0 &&
                       track.album.images[0].url;
 
+                    const isFavorite = favoriteTracks.some(
+                      (f) => f.id === track.id
+                    );
+
                     return (
                       <li
                         key={track.id}
-                        className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/60 px-3 py-2"
+                        className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/60 px-3 py-2 hover:border-white/20 transition"
                       >
                         <div className="flex min-w-0 items-center gap-3">
-                          {cover && (
+                          {cover ? (
                             <img
                               src={cover}
                               alt={track.name}
                               className="h-10 w-10 flex-shrink-0 rounded-md object-cover"
                             />
+                          ) : (
+                            <div className="h-10 w-10 flex-shrink-0 rounded-md bg-zinc-800" />
                           )}
                           <div className="min-w-0">
                             <p className="truncate font-medium">
@@ -451,17 +466,17 @@ function DashboardPage() {
                           <div className="flex items-center gap-2">
                             <button
                               onClick={() => toggleFavorite(track)}
-                              className="rounded-full border border-white/20 px-2 py-1 text-[10px] hover:bg-white/10"
+                              className={`rounded-full border px-2 py-1 text-[10px] transition ${
+                                isFavorite
+                                  ? 'border-pink-400/70 bg-pink-600/30 text-pink-200 hover:bg-pink-600/50'
+                                  : 'border-white/20 hover:bg-white/10'
+                              }`}
                             >
-                              {favoriteTracks.some(
-                                (f) => f.id === track.id
-                              )
-                                ? "Unfav"
-                                : "Fav"}
+                              {isFavorite ? "Fav" : "Add"}
                             </button>
                             <button
                               onClick={() => removeTrack(track.id)}
-                              className="rounded-full border border-rose-400/70 px-2 py-1 text-[10px] text-rose-200 hover:bg-rose-600/70 hover:border-rose-300"
+                              className="rounded-full border border-rose-400/70 px-2 py-1 text-[10px] text-rose-200 hover:bg-rose-600/70 hover:border-rose-300 transition"
                             >
                               Quitar
                             </button>
@@ -471,9 +486,17 @@ function DashboardPage() {
                     );
                   })}
                 </ul>
+
+                {tracks.length === 0 && !error && (
+                  <div className="mt-4 text-center py-8">
+                    <p className="text-zinc-400 text-sm">
+                      Configura tus widgets y pulsa "Generar playlist" para empezar
+                    </p>
+                  </div>
+                )}
               </div>
 
-              {/* WIDGET LOVER – FAVORITAS */}
+              {/* WIDGET LOVER - FAVORITAS */}
               <FavoritesWidget
                 favorites={favoriteTracks}
                 onClear={() => setFavoriteTracks([])}

@@ -1,7 +1,8 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
-import { getAccessToken } from "@/lib/auth";
+import { getAccessToken, refreshAccessToken } from "@/lib/auth";
 
 const MAX_SELECTED_ARTISTS = 5;
 
@@ -12,7 +13,7 @@ function ArtistWidget({ onChange }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Emitimos cambios al padre
+  // Emitir cambios al padre
   const updateSelection = (artists) => {
     setSelectedArtists(artists);
     if (onChange) {
@@ -22,19 +23,28 @@ function ArtistWidget({ onChange }) {
 
   const handleAddArtist = (artist) => {
     const alreadySelected = selectedArtists.some((a) => a.id === artist.id);
-    if (alreadySelected) return;
-    if (selectedArtists.length >= MAX_SELECTED_ARTISTS) return;
+    if (alreadySelected) {
+      console.log('Artista ya seleccionado:', artist.name);
+      return;
+    }
+    
+    if (selectedArtists.length >= MAX_SELECTED_ARTISTS) {
+      console.log('Límite de artistas alcanzado');
+      return;
+    }
 
     const updated = [...selectedArtists, artist];
     updateSelection(updated);
+    console.log('Artista añadido:', artist.name);
   };
 
   const handleRemoveArtist = (artistId) => {
     const updated = selectedArtists.filter((a) => a.id !== artistId);
     updateSelection(updated);
+    console.log('Artista eliminado');
   };
 
-  // Búsqueda con debounce mientras el usuario escribe
+  // Búsqueda con debounce
   useEffect(() => {
     const trimmed = query.trim();
 
@@ -45,11 +55,9 @@ function ArtistWidget({ onChange }) {
       return;
     }
 
-    const token = getAccessToken();
+    let token = getAccessToken();
     if (!token) {
-      setError(
-        "No se encontró un token válido. Vuelve a iniciar sesión para buscar artistas."
-      );
+      setError("Sesión expirada. Por favor, vuelve a iniciar sesión.");
       setResults([]);
       setIsLoading(false);
       return;
@@ -61,7 +69,9 @@ function ArtistWidget({ onChange }) {
 
     const handler = setTimeout(async () => {
       try {
-        const response = await fetch(
+        console.log('Buscando artistas:', trimmed);
+
+        let response = await fetch(
           `https://api.spotify.com/v1/search?q=${encodeURIComponent(
             trimmed
           )}&type=artist&limit=10`,
@@ -72,19 +82,43 @@ function ArtistWidget({ onChange }) {
           }
         );
 
+        // Si el token expiró, intentar refrescarlo
+        if (response.status === 401) {
+          console.log('Token expirado, refrescando...');
+          token = await refreshAccessToken();
+          
+          if (!token) {
+            throw new Error('No se pudo refrescar el token');
+          }
+
+          // Reintentar con el nuevo token
+          response = await fetch(
+            `https://api.spotify.com/v1/search?q=${encodeURIComponent(
+              trimmed
+            )}&type=artist&limit=10`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          );
+        }
+
         if (!response.ok) {
-          throw new Error("Error al buscar artistas");
+          throw new Error(`Error ${response.status}: ${response.statusText}`);
         }
 
         const data = await response.json();
+        
         if (!cancelled) {
-          setResults(data?.artists?.items ?? []);
+          const artists = data?.artists?.items ?? [];
+          setResults(artists);
+          console.log(`${artists.length} artistas encontrados`);
         }
       } catch (err) {
+        console.error('Error buscando artistas:', err);
         if (!cancelled) {
-          setError(
-            "No se pudieron cargar artistas. Inténtalo de nuevo más tarde."
-          );
+          setError(err.message || "No se pudieron cargar artistas. Inténtalo de nuevo.");
           setResults([]);
         }
       } finally {
@@ -92,7 +126,7 @@ function ArtistWidget({ onChange }) {
           setIsLoading(false);
         }
       }
-    }, 400); // debounce ~400ms
+    }, 400); // debounce 400ms
 
     return () => {
       cancelled = true;
@@ -110,7 +144,7 @@ function ArtistWidget({ onChange }) {
       <div className="pointer-events-none absolute inset-0 bg-[url('/noise.png')] opacity-[0.25] mix-blend-screen" />
 
       <div className="relative space-y-4">
-        {/* Cabecera showgirl */}
+        {/* Cabecera */}
         <div className="flex items-start justify-between gap-2">
           <div className="space-y-1">
             <div className="inline-flex items-center gap-2 rounded-full border border-amber-300/80 bg-black/60 px-3 py-1">
@@ -132,7 +166,7 @@ function ArtistWidget({ onChange }) {
           </span>
         </div>
 
-        {/* Info de selección y límite */}
+        {/* Info de selección */}
         <div className="flex items-center justify-between text-[11px] text-teal-100/85">
           <p>
             Seleccionados:{" "}
@@ -166,7 +200,11 @@ function ArtistWidget({ onChange }) {
             Buscando artistas en Spotify...
           </p>
         )}
-        {error && <p className="text-[11px] text-amber-200">{error}</p>}
+        {error && (
+          <div className="rounded-lg border border-amber-300/50 bg-amber-900/20 px-3 py-2">
+            <p className="text-[11px] text-amber-200">{error}</p>
+          </div>
+        )}
 
         {/* Artistas seleccionados */}
         <div className="space-y-1">
@@ -191,7 +229,7 @@ function ArtistWidget({ onChange }) {
                     {artist.name}
                   </span>
                   <span className="text-[10px] group-hover:text-black">
-                    · Quitar
+                    - Quitar
                   </span>
                 </button>
               ))}
@@ -206,34 +244,40 @@ function ArtistWidget({ onChange }) {
               Casting disponible
             </p>
             <ul className="max-h-40 space-y-1 overflow-y-auto pr-1 text-[11px]">
-              {results.map((artist) => (
-                <li
-                  key={artist.id}
-                  className="flex items-center justify-between gap-2 rounded-xl border border-teal-400/40 bg-black/70 px-3 py-2"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate font-medium text-teal-100">
-                      {artist.name}
-                    </p>
-                    {artist.genres?.length > 0 && (
-                      <p className="truncate text-[10px] text-teal-200/80">
-                        {artist.genres.slice(0, 2).join(" · ")}
-                      </p>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleAddArtist(artist)}
-                    disabled={
-                      selectedArtists.length >= MAX_SELECTED_ARTISTS ||
-                      selectedArtists.some((a) => a.id === artist.id)
-                    }
-                    className="rounded-full border border-teal-300/70 bg-teal-600/80 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-teal-50 transition hover:bg-orange-300 hover:text-black hover:border-orange-200 disabled:cursor-not-allowed disabled:opacity-50"
+              {results.map((artist) => {
+                const alreadySelected = selectedArtists.some(
+                  (a) => a.id === artist.id
+                );
+                
+                return (
+                  <li
+                    key={artist.id}
+                    className="flex items-center justify-between gap-2 rounded-xl border border-teal-400/40 bg-black/70 px-3 py-2"
                   >
-                    Añadir
-                  </button>
-                </li>
-              ))}
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-teal-100">
+                        {artist.name}
+                      </p>
+                      {artist.genres?.length > 0 && (
+                        <p className="truncate text-[10px] text-teal-200/80">
+                          {artist.genres.slice(0, 2).join(" - ")}
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleAddArtist(artist)}
+                      disabled={
+                        selectedArtists.length >= MAX_SELECTED_ARTISTS ||
+                        alreadySelected
+                      }
+                      className="rounded-full border border-teal-300/70 bg-teal-600/80 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-teal-50 transition hover:bg-orange-300 hover:text-black hover:border-orange-200 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {alreadySelected ? 'Añadido' : 'Añadir'}
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           </div>
         )}

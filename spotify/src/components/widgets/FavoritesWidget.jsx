@@ -18,7 +18,7 @@ function FavoritesWidget({ favorites = [], onClear }) {
           <div className="space-y-1">
             <p className="inline-flex items-center gap-1 rounded-full border border-pink-200 bg-white/70 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.25em] text-pink-700">
               <span className="h-1.5 w-1.5 rounded-full bg-pink-500 shadow-[0_0_10px_rgba(236,72,153,0.8)]" />
-              Lover · favorites
+              Lover - favorites
             </p>
             <h3 className="text-sm font-semibold tracking-tight">
               Canciones favoritas
@@ -69,7 +69,7 @@ function FavoritesWidget({ favorites = [], onClear }) {
                 </div>
 
                 <span className="text-[10px] uppercase tracking-[0.2em] text-pink-500">
-                  ♥
+                  FAV
                 </span>
               </li>
             ))}
